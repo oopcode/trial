@@ -1,2 +1,51 @@
-# trial
-A simple microservice in Go
+# Trial application
+
+## 1. General description
+
+`Trial` is a sample project which contains an implementation of a simple microservice. The microservice reads JSON messages fron [NSQ](http://nsq.io/), tries to parse them into `common.AppMessage` struct and sends it to [Aerospike](http://aerospike.com/).
+
+## 2. Configuration
+
+The application expects to find a valid JSON configuration file located at `/opt/trial/config.json`, relative to project root. Default configuration looks as follows:
+
+```
+{
+    "nsq_topic_name": "trial_topic",
+    "nsq_host_port": "127.0.0.1:4150",
+    "nsq_consumer_delta": 5,
+    "nsq_consumer_max_read": 10,
+    "as_host": "127.0.0.1",
+    "as_port": 3000,
+    "as_namespace": "test",
+    "as_set": "trial_set"
+}
+```
+
+* `nsq_topic_name` is the topic name for NSQ. If no such topic exists, it will be created;
+* `nsq_host_port` specifies NSQ listen address;
+* `nsq_consumer_delta` specifies time (in seconds) between reads from NSQ;
+* `nsq_consumer_max_read` specifies maximum number of messages that can be retrieved from NSQ by a single read;
+* `as_host` specifies Aerospike listen host;
+* `as_port` specifies Aerospike listen port;
+* `as_namespace` is the namespace to be used with Aerospike; is no such namespace exists, writes will **fail with an error**;
+* `as_set`: is the set to be used with Aerospike; is no such set exists, it will be created.
+
+## 3. Running the code
+
+Running the code is simple:
+
+```
+go run main.go
+```
+
+Logs are stored at `/var/log/trial.log`.
+
+## 4. Daemon
+
+Move `./trial.init` from project root to `/etc/init.d/` and it will be available as a service. You will also have to move the binary to `/usr/local/bin/`:
+
+```
+go build -o trial && sudo mv trial /usr/local/bin/
+```
+
+Specific handlers are set for `SIGINT, SIGTERM`.

@@ -1,0 +1,10 @@
+{
+    "nsq_topic_name": "trial_topic",
+    "nsq_host_port": "127.0.0.1:4150",
+    "nsq_consumer_delta": 5,
+    "nsq_consumer_max_read": 10,
+    "as_host": "127.0.0.1",
+    "as_port": 3000,
+    "as_namespace": "test",
+    "as_set": "trial_set"
+}
