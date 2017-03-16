@@ -2,11 +2,20 @@
 
 ## 1. General description
 
-`Trial` is a sample project which contains an implementation of a simple microservice. The microservice reads JSON messages fron [NSQ](http://nsq.io/), tries to parse them into `common.AppMessage` struct and sends it to [Aerospike](http://aerospike.com/).
+`Trial` is a sample project which contains an implementation of a simple microservice. The microservice reads JSON messages fron [NSQ](http://nsq.io/), tries to parse them into `common.AppMessage` structs and then sends them to [Aerospike](http://aerospike.com/).
+
+`AppMessage` is a simple type with just two fields:
+
+```
+type AppMsg struct {
+	ID        int64  `json:"id"`
+	Timestamp string `json:"timestamp"`
+}
+```
 
 ## 2. Configuration
 
-The application expects to find a valid JSON configuration file located at `/opt/trial/config.json`, relative to project root. Default configuration looks as follows:
+The application expects to find a valid JSON configuration file located at `/opt/trial/config.json`. Default configuration looks as follows:
 
 ```
 {
@@ -32,10 +41,11 @@ The application expects to find a valid JSON configuration file located at `/opt
 
 ## 3. Running the code
 
-Running the code is simple:
+Running the code is simple (sudo is required to write PID):
 
 ```
-go run main.go
+reset && go build -o trial && sudo ./trial
+
 ```
 
 Logs are stored at `/var/log/trial.log`.
