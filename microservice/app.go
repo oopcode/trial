@@ -13,12 +13,13 @@ import (
 )
 
 // App implements a microservice which gets data from NSQ and sends it to
-// Aerospike.
+// Aerospike. It also implements custom consumption procedure: only
+// Config.NSQConsumerMaxRead messages are read each Config.NSQConsumerDelta
+// seconds.
 type App struct {
 	sync.Mutex
 	nsqConn     *nsq.Consumer
-	asConn      *as.Client
-	asPolicy    *as.ClientPolicy
+	asConn      *common.ASConn
 	cfg         *common.Config
 	msg2delayed map[*nsq.Message]chan error
 	stopper     chan struct{}
@@ -47,17 +48,9 @@ func (a *App) Run() error {
 	if err := nsqConn.ConnectToNSQD(a.cfg.NSQHostPort); err != nil {
 		return fmt.Errorf("Failed to connect to NSQ server; %v", err)
 	}
+	a.nsqConn = nsqConn
 	// Set up connection to Aerospike.
-	a.asPolicy = as.NewClientPolicy()
-	a.asPolicy.Timeout = time.Millisecond * 10
-	asConn, err := as.NewClientWithPolicy(a.asPolicy,
-		a.cfg.ASHost, a.cfg.ASPort)
-	if err != nil {
-		log.Printf("Failed to connect to aerospike; %v", err)
-		return err
-	}
-	// Save connections.
-	a.nsqConn, a.asConn = nsqConn, asConn
+	a.asConn = common.NewASConn(a.cfg.ASHost, a.cfg.ASPort)
 	return nil
 }
 
@@ -86,10 +79,14 @@ func (a *App) Start() {
 
 // Kill closes connection to NSQ.
 func (a *App) Kill() {
+	a.Lock()
+	defer a.Unlock()
 	if err := a.nsqConn.DisconnectFromNSQD(a.cfg.NSQHostPort); err != nil {
 		log.Printf("Failed to disconnect from NSQ; %v", err)
 	}
 	log.Println("Disconnected from NSQ")
+	a.asConn.Close()
+	log.Println("Disconnected from Aerospike")
 	a.stopper <- struct{}{}
 	log.Println("Killed app's processing loop")
 }
@@ -106,13 +103,17 @@ func (a *App) scheduleMessage(msg *nsq.Message) chan error {
 func (a *App) execute() {
 	a.Lock()
 	defer a.Unlock()
+	var wg sync.WaitGroup
 	for msg, out := range a.msg2delayed {
-		go a.handleMessage(msg, out)
+		wg.Add(1)
+		go a.handleMessage(msg, out, &wg)
 	}
+	wg.Wait()
 	a.msg2delayed = make(map[*nsq.Message]chan error)
 }
 
-func (a *App) handleMessage(msg *nsq.Message, delayed chan error) {
+func (a *App) handleMessage(msg *nsq.Message, delayed chan error,
+	wg *sync.WaitGroup) {
 	appMsg := &common.AppMsg{}
 	if err := json.Unmarshal(msg.Body, appMsg); err != nil {
 		log.Printf("Failed to read message; %s, %v", string(msg.Body), err)
@@ -127,26 +128,13 @@ func (a *App) handleMessage(msg *nsq.Message, delayed chan error) {
 	log.Printf("Received message: %+v", appMsg)
 	a.sendMessageAS(appMsg)
 	delayed <- nil
+	wg.Done()
 }
 
 // sendMessageAS writes the message to aerospike. A new connection is created
 // for each write (inefficient, but spares some code required to maintain a
 // living connection).
 func (a *App) sendMessageAS(msg *common.AppMsg) {
-	a.Lock()
-	defer a.Unlock()
-	if !a.asConn.IsConnected() {
-		// Just to be sure.
-		a.asConn.Close()
-		// Try to reconnect.
-		asConn, err := as.NewClientWithPolicy(
-			a.asPolicy, a.cfg.ASHost, a.cfg.ASPort)
-		if err != nil {
-			log.Printf("Failed to connect to aerospike; %v", err)
-			return
-		}
-		a.asConn = asConn
-	}
 	key, err := as.NewKey(a.cfg.ASNamespace, a.cfg.ASSet, msg.ID)
 	if err != nil {
 		log.Printf("Failed to create aerospike key; %v", err)
