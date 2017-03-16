@@ -18,6 +18,7 @@ type App struct {
 	sync.Mutex
 	nsqConn     *nsq.Consumer
 	asConn      *as.Client
+	asPolicy    *as.ClientPolicy
 	cfg         *common.Config
 	msg2delayed map[*nsq.Message]chan error
 	stopper     chan struct{}
@@ -41,16 +42,21 @@ func (a *App) Run() error {
 		return fmt.Errorf("Failed to create a consumer; %v", err)
 	}
 	go a.Start()
-	// N.B.: LOTS of concurrent handlers.
+	// Set up NSQ comsumer.
 	nsqConn.AddConcurrentHandlers(a, a.cfg.NSQConsumerMaxRead)
 	if err := nsqConn.ConnectToNSQD(a.cfg.NSQHostPort); err != nil {
 		return fmt.Errorf("Failed to connect to NSQ server; %v", err)
 	}
-	asConn, err := as.NewClient(a.cfg.ASHost, a.cfg.ASPort)
+	// Set up connection to Aerospike.
+	a.asPolicy = as.NewClientPolicy()
+	a.asPolicy.Timeout = time.Millisecond * 10
+	asConn, err := as.NewClientWithPolicy(a.asPolicy,
+		a.cfg.ASHost, a.cfg.ASPort)
 	if err != nil {
 		log.Printf("Failed to connect to aerospike; %v", err)
 		return err
 	}
+	// Save connections.
 	a.nsqConn, a.asConn = nsqConn, asConn
 	return nil
 }
@@ -133,18 +139,21 @@ func (a *App) sendMessageAS(msg *common.AppMsg) {
 		// Just to be sure.
 		a.asConn.Close()
 		// Try to reconnect.
-		asConn, err := as.NewClient(a.cfg.ASHost, a.cfg.ASPort)
+		asConn, err := as.NewClientWithPolicy(
+			a.asPolicy, a.cfg.ASHost, a.cfg.ASPort)
 		if err != nil {
 			log.Printf("Failed to connect to aerospike; %v", err)
 			return
 		}
 		a.asConn = asConn
 	}
+	fmt.Println(5)
 	key, err := as.NewKey(a.cfg.ASNamespace, a.cfg.ASSet, msg.ID)
 	if err != nil {
 		log.Printf("Failed to create aerospike key; %v", err)
 		return
 	}
+	fmt.Println(6)
 	tsBin := as.NewBin("timestamp", msg.Timestamp)
 	err = a.asConn.PutBins(nil, key, tsBin)
 	if err != nil {
