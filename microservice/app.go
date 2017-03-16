@@ -114,6 +114,7 @@ func (a *App) execute() {
 
 func (a *App) handleMessage(msg *nsq.Message, delayed chan error,
 	wg *sync.WaitGroup) {
+	defer wg.Done()
 	appMsg := &common.AppMsg{}
 	if err := json.Unmarshal(msg.Body, appMsg); err != nil {
 		log.Printf("Failed to read message; %s, %v", string(msg.Body), err)
@@ -126,24 +127,26 @@ func (a *App) handleMessage(msg *nsq.Message, delayed chan error,
 		return
 	}
 	log.Printf("Received message: %+v", appMsg)
-	a.sendMessageAS(appMsg)
+	if err := a.sendMessageAS(appMsg); err != nil {
+		log.Printf("Failed to send to aerospike; %v", err)
+		delayed <- err
+		return
+	}
 	delayed <- nil
-	wg.Done()
 }
 
-// sendMessageAS writes the message to aerospike. A new connection is created
-// for each write (inefficient, but spares some code required to maintain a
-// living connection).
-func (a *App) sendMessageAS(msg *common.AppMsg) {
+// sendMessageAS writes the message to aerospike.
+func (a *App) sendMessageAS(msg *common.AppMsg) error {
 	key, err := as.NewKey(a.cfg.ASNamespace, a.cfg.ASSet, msg.ID)
 	if err != nil {
 		log.Printf("Failed to create aerospike key; %v", err)
-		return
+		return err
 	}
 	tsBin := as.NewBin("timestamp", msg.Timestamp)
 	err = a.asConn.PutBins(nil, key, tsBin)
 	if err != nil {
 		log.Printf("Failed to put aerospike bins; %v", err)
-		return
+		return err
 	}
+	return nil
 }
