@@ -147,13 +147,11 @@ func (a *App) sendMessageAS(msg *common.AppMsg) {
 		}
 		a.asConn = asConn
 	}
-	fmt.Println(5)
 	key, err := as.NewKey(a.cfg.ASNamespace, a.cfg.ASSet, msg.ID)
 	if err != nil {
 		log.Printf("Failed to create aerospike key; %v", err)
 		return
 	}
-	fmt.Println(6)
 	tsBin := as.NewBin("timestamp", msg.Timestamp)
 	err = a.asConn.PutBins(nil, key, tsBin)
 	if err != nil {
