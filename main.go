@@ -21,7 +21,7 @@ func main() {
 	}
 	go producer.RunProducer(cfg)
 	log.Println("Started producer")
-	app := microservice.NewAppWTF(cfg)
+	app := microservice.NewApp(cfg)
 	if err := app.Run(); err != nil {
 		log.Printf("Failed to run app; %v", err)
 		os.Exit(1)
@@ -41,6 +41,7 @@ func handleSignals(killable IKillable) {
 	os.Exit(1)
 }
 
+// IKillable is an interface for something that can be Kill()'ed.
 type IKillable interface {
 	Kill()
 }
