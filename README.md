@@ -15,7 +15,7 @@ type AppMsg struct {
 
 Aerospike keys are `AppMsg.ID`s, rows have just one column: `"timestamp"`.
 
-Another twist is that NSQ consumer is modified in a way that guaranties that at most `nsq_consumer_max_read` messaged are received each `nsq_consumer_delta` seconds; this is not achievable via standard NSQ client config and demonstrates a way to modify standard behavior in a somewhat tricky way (see [source code](https://github.com/oopcode/trial/blob/master/microservice/app.go)).
+Another twist is that NSQ consumer is modified to guarantee that at most `nsq_consumer_max_read` messaged are received each `nsq_consumer_delta` seconds; this is not achievable via standard NSQ client config and demonstrates how we can modify standard behavior in a somewhat tricky way (see [source code](https://github.com/oopcode/trial/blob/master/microservice/app.go)).
 
 ## 2. Configuration
 
