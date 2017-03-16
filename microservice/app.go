@@ -40,7 +40,7 @@ func (a *App) Run() error {
 		return fmt.Errorf("Failed to create a consumer; %v", err)
 	}
 	go a.loop()
-	conn.AddConcurrentHandlers(a, a.cfg.NSQConsumerMaxRead)
+	conn.AddHandler(a)
 	if err := conn.ConnectToNSQD(a.cfg.NSQHostPort); err != nil {
 		return fmt.Errorf("Failed to connect to NSQ server; %v", err)
 	}
