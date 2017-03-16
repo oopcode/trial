@@ -21,7 +21,7 @@ func RunProducer(appCfg *common.Config) {
 	}
 	defer w.Stop()
 	for {
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 10)
 		now := time.Now()
 		msg := common.AppMsg{
 			ID:        now.Unix(),

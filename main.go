@@ -32,16 +32,12 @@ func main() {
 	wg.Wait()
 }
 
-func handleSignals(killable IKillable) {
+func handleSignals(killable common.IKillable) {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-sigs
 	log.Printf("Caught signal %v; exiting gracefully", sig.String())
 	killable.Kill()
+	log.Println("Exited")
 	os.Exit(1)
-}
-
-// IKillable is an interface for something that can be Kill()'ed.
-type IKillable interface {
-	Kill()
 }
