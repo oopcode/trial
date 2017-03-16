@@ -59,3 +59,7 @@ go build -o trial && sudo mv trial /usr/local/bin/
 ```
 
 Specific handlers are set for `SIGINT, SIGTERM`.
+
+## 5. Additional
+
+The application starts with a simple producer sending messages to NSQ. You can easily disable producer in `main.go`: just comment it out.
