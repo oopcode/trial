@@ -13,6 +13,8 @@ type AppMsg struct {
 }
 ```
 
+Aerospike keys are `AppMsg.ID`s, rows have just one column: `"timestamp"`.
+
 ## 2. Configuration
 
 The application expects to find a valid JSON configuration file located at `/opt/trial/config.json`. Default configuration looks as follows:
